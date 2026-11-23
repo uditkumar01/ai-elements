@@ -1,0 +1,175 @@
+---
+title: Aurb
+description: An animated orb that shows what your AI is doing, with smooth crossfades between states like listening, thinking, and speaking.
+path: elements/components/aurb
+---
+
+The `Aurb` component displays an animated orb that reflects your AI's current state. It is built on [aurb](https://aurb.chalktalk.dev) ([GitHub](https://github.com/chalktalkhq/aurb)), which plays small pre-rendered video loops, so the browser decodes them off the main thread and an orb never blocks a click. Change `state` at any time and the orb crossfades to it.
+
+<Preview path="aurb" />
+
+## Installation
+
+<ElementsInstaller path="aurb" />
+
+## Features
+
+- 15 orbs, each with its own material, shape and motion
+- 8 states: idle, listening, thinking, working, speaking, success, error, and asleep
+- Smooth crossfades between states, with a minimum hold so fast responses don't flicker
+- A small player (about 4 KB gzip); a 120px orb costs about 30 KB on first load
+- Video decoding runs off the main thread, and only the current state and theme are downloaded
+- Follows light and dark mode automatically
+- Shows a still poster on Save-Data, 2G, and `prefers-reduced-motion`
+- Safe to server-render: the size is reserved before the element upgrades, so nothing shifts
+- TypeScript support with typed variants and states
+
+## Variants
+
+All 15 orbs, driven by one shared state:
+
+<Preview path="aurb-variants" />
+
+`ferro`, `mercury`, and `bubble` are solid bodies that move through a rest pose between states. `Aurb` sets `transition="rest"` for them automatically. If you self-host one of them, set `transition="rest"` yourself.
+
+## Props
+
+### `<Aurb />`
+
+Renders an `<aurb-orb>` element. Any other HTML attribute is passed through to it.
+
+<TypeTable
+  type={{
+    state: {
+      description:
+        "What the orb is doing. Change it at any time; it crossfades.",
+      type: '"idle" | "listening" | "thinking" | "working" | "speaking" | "success" | "error" | "asleep"',
+      default: '"idle"',
+    },
+    variant: {
+      description:
+        'Which orb to show. One of the built-in orbs, a pinned version such as "aurora@1.0.0", a community package such as "npm:aurb-orb-nebula@1.0.0", or the URL of a folder you host yourself.',
+      type: "AurbVariant | string",
+      default: '"aurora"',
+    },
+    className: {
+      description:
+        "Additional CSS classes, merged with size-16 shrink-0. Set the size with width, for example size-32.",
+      type: "string",
+      optional: true,
+    },
+    prefetch: {
+      description: "States to fetch once the page is idle, comma separated.",
+      type: "string",
+      default: '"thinking,speaking"',
+    },
+    transition: {
+      description:
+        'Crossfade in ms, optionally per state: "500 thinking:250 error:150". "rest" moves a solid orb through its rest pose.',
+      type: "number | string",
+      default: '500, or "rest" for ferro, mercury and bubble',
+    },
+    hold: {
+      description:
+        "Minimum ms a state stays before the next, so fast responses don't flicker.",
+      type: "number | string",
+      default: "200",
+    },
+    theme: {
+      description:
+        "auto follows .dark, .light or data-theme on <html> or <body>, then the system. Only that theme is downloaded.",
+      type: '"auto" | "dark" | "light"',
+      default: '"auto"',
+    },
+    surface: {
+      description:
+        'The colour behind the orb. "auto" reads and paints it, "none" blends onto the page (for an image or gradient backdrop), or any CSS colour.',
+      type: "string",
+      default: '"auto"',
+    },
+    static: {
+      description: "Show the still poster and fetch no video.",
+      type: "boolean",
+      optional: true,
+    },
+    paused: {
+      description: "Freeze on the current frame and stop decoding.",
+      type: "boolean",
+      optional: true,
+    },
+    onStateChange: {
+      description: "Called when a new state is on screen.",
+      type: "(state: AurbState) => void",
+      optional: true,
+    },
+    onReady: {
+      description: "Called when the first video frame is showing.",
+      type: "() => void",
+      optional: true,
+    },
+    onError: {
+      description:
+        'Called when a state could not be shown: "missing" (no such state or orb) or "blocked" (autoplay refused). The current picture stays.',
+      type: "(detail: AurbErrorDetail) => void",
+      optional: true,
+    },
+  }}
+/>
+
+## States
+
+- **idle**: Slow drift. The default resting state
+- **listening**: Sound arrives; waves travel in from the rim
+- **thinking**: The folds churn inside, with irregular sparks
+- **working**: Light circles the orb at a steady rhythm, for tool calls
+- **speaking**: Sound leaves; it swells and waves travel outward
+- **success**: Green and calm
+- **error**: Red, tense, and shuddering
+- **asleep**: Nearly dark, barely breathing
+
+## Usage with AI SDK
+
+Map `useChat`'s `status` to an orb state:
+
+```tsx
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import type { AurbState } from "@/components/ai-elements/aurb";
+import { Aurb } from "@/components/ai-elements/aurb";
+
+const statusToState = {
+  error: "error",
+  ready: "idle",
+  streaming: "speaking",
+  submitted: "thinking",
+} satisfies Record<ReturnType<typeof useChat>["status"], AurbState>;
+
+export default function Assistant() {
+  const { status } = useChat();
+
+  return <Aurb className="size-24" state={statusToState[status]} />;
+}
+```
+
+## Accessibility
+
+`Aurb` is decorative by default and renders with `aria-hidden="true"`, so pair it with a visible or screen-reader status message. If the orb is the only status cue, give it a role and a label:
+
+```tsx
+<Aurb aria-label="Assistant is thinking" role="img" state="thinking" />
+```
+
+Users with `prefers-reduced-motion` see a still poster instead of video.
+
+## Limitations
+
+- **Pre-rendered motion**: the loops are fixed, so an orb can't follow a live audio level or the mouse.
+- **Hosting**: videos are fetched from jsDelivr by default. To host them yourself, see [Host the files yourself in the aurb README](https://github.com/chalktalkhq/aurb#readme) and set `variant` to your folder's URL.
+- **Many orbs**: each playing orb decodes its own video. In a list, keep one or two moving and use `static` or `paused` on the rest. Orbs that are offscreen or in a hidden tab pause automatically.
+
+## Resources
+
+- [aurb.chalktalk.dev](https://aurb.chalktalk.dev): browse every orb and state, and copy its code
+- [aurb on GitHub](https://github.com/chalktalkhq/aurb): source, the full list of orbs and states, and how to self-host or make your own orb
+- [`@aurb/player` on npm](https://www.npmjs.com/package/@aurb/player)
